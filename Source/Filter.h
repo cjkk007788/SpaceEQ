@@ -8,19 +8,6 @@
 class Filter
 {
 
-private:
-
-    Optionbox::EQMode currentEQMode;  // Optionbox::EQMode 타입 사용
-    int currentFilterType;
-    float cutoffFrequency;
-    float resonance;
-
-    juce::dsp::IIR::Filter<float> iirFilter; // IIR 필터 객체
-    juce::dsp::FIR::Filter<float> firFilter; // FIR 필터 객체
-    juce::dsp::FIR::Coefficients<float>::Ptr firCoefficients; // FIR 필터 계수
-
-    void updateFilter();
-
 public:
 
     enum FilterType {
@@ -34,41 +21,48 @@ public:
     };
 
     Filter(); 
-    ~Filter(); 
+    ~Filter();
 
-    void setFilterType(FilterType type);
+    void addIIRFilter(FilterType type, float cutoffFrequency, float q,float gain);
+    void removeIIRFilter(size_t index);
+    void setFilterType(FilterType type, size_t index);
     FilterType getFilterType(size_t index) const;
     
     void setEQMode(Optionbox::EQMode mode);
     Optionbox::EQMode getEQMode() const;
 
-    void setCutoffFrequency(float frequency);
-    float getCutoffFrequency() const;
+    void setCutoffFrequency(float frequency, size_t index);
+    float getCutoffFrequency(size_t index) const;
 
-    void setQ(float resonance);
-    float getQ() const;
+    void setQ(float qValue, size_t index);
+    float getQ(size_t index) const;
 
     void prepareToPlay(double sampleRate, int samplesPerBlock);
     void process(juce::AudioBuffer<float>& buffer);
 
+    void setGain(float gainValue, size_t index);
+    float getGain(size_t index) const;
+
+    
+    //filter baisic 6bands
+
 private:
 
+    Optionbox::EQMode currentEQMode; // linear or basic
+    Optionbox::ProcessingMode currentProcessingMode; 
+
     std::vector<FilterType> filterTypes;
-    Optionbox::EQMode currentEQMode;
     std::vector<float> cutoffFrequencies;
     std::vector<float> qValues;
+    std::vector<float> gains; 
+
+
 
     using IIRFilterBand = juce::dsp::ProcessorDuplicator<juce::dsp::IIR::Filter<float>, juce::dsp::IIR::Coefficients<float>>;
     using FIRFilterBand = juce::dsp::FIR::Filter<float>;
     using Gain = juce::dsp::Gain<float>;
 
-    juce::dsp::ProcessorChain<IIRFilterBand, IIRFilterBand, IIRFilterBand, IIRFilterBand, IIRFilterBand, IIRFilterBand, Gain> iirFilterChain;
-    juce::dsp::ProcessorChain<FIRFilterBand, FIRFilterBand, FIRFilterBand, FIRFilterBand, FIRFilterBand, FIRFilterBand, Gain> firFilterChain;
-
-    void updateIIRFilter();
-    void updateFIRFilter();
-    
-    //filter 변수는 기본적으로 밴드가 6개 달린 Filter이다
-
+    std::vector<std::unique_ptr<IIRFilterBand>> iirFilters;
+    void updateIIRFilter(size_t index);
 
 };

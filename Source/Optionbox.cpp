@@ -1,13 +1,13 @@
 #include "Optionbox.h"
 
 
-//±âº» »ý¼ºÀÚ --> defalut EQ Mode
+//defalut EQ Mode
 Optionbox::Optionbox()
     : currentEQMode(BasicEQ), // basicEQ  ==> IIR FILTER
     currentProcessingMode(Mid), // MID PROCESSING
-    busModeEnabled(false), // BUS MODE ºñÈ°¼ºÈ­
-    currentSpectrumAccuracy(Level1), // Spectrum Á¤È®µµ level - 1
-    currentPivotSlope(0.0f) // pivot ±âº»°ª °¡ÁßÄ¡ 0
+    busModeEnabled(false), // BUS MODE
+    currentSpectrumAccuracy(Level1), // Spectrum
+    currentPivotSlope(0.0f) // pivot
 {
 }
 void Optionbox::setEQMode(EQMode newMode) {
