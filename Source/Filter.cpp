@@ -41,7 +41,6 @@ Filter::Filter()
     cutoffFrequencies = { 100.0f, 200.0f, 500.0f, 1000.0f, 2000.0f, 5000.0f };
     qValues = { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f };
     gains = { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f };
-    //기본적으로 밴드 6개
 }
 
 Filter::~Filter()
