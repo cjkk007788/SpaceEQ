@@ -34,7 +34,7 @@ struct Band {
     std::vector<double> magnitudes;
 };
 
-class BandController {
+class Bandcontroller {
 public:
     void addBand(const juce::String& name, juce::Colour colour, FilterType type,
         float frequency, float quality, float gain = 1.0f, bool active = true);
