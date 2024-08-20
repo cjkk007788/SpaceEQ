@@ -435,17 +435,9 @@ juce::dsp::FIR::Coefficients<float>::Ptr Filter::designBandstopFIR(float centerF
 
 juce::dsp::FIR::Coefficients<float>::Ptr Filter::designPeakFIR(float centerFrequency,float Q, double sampleRate, size_t order, juce::dsp::WindowingFunction<float>::WindowingMethod windowType, float gain)
 {
-    // 대역폭을 Q 값을 사용하여 계산
     float bandwidth = centerFrequency / Q;
-
-    // 주파수 정규화
-    // 대역 통과 필터 설계
     auto bandpassCoefficients = designBandpassFilter(centerFrequency,Q,sampleRate,order,windowType);
-
-    // 피크 필터 계수를 저장할 객체를 생성합니다. (order + 1개의 계수)
     juce::dsp::FIR::Coefficients<float> peakCoefficients(order + 1);
-
-    // 전체 통과 필터 계수를 설정합니다. (기본적으로 모든 계수가 0이고 중앙이 1인 전체 통과 필터)
     for (size_t i = 0; i <= order; ++i)
     {
         if (i == order / 2)
@@ -459,22 +451,36 @@ juce::dsp::FIR::Coefficients<float>::Ptr Filter::designPeakFIR(float centerFrequ
 
 juce::dsp::FIR::Coefficients<float>::Ptr Filter::designLowShelfFIR(float cutoffFrequency, double sampleRate, size_t order, juce::dsp::WindowingFunction<float>::WindowingMethod windowType,float gain )
 {
+    std::vector<float> frequencyResponse(order + 1, 1.0f);
     float normalizedCutoff = cutoffFrequency / (sampleRate / 2.0);
-    auto lowpassCoefficients = juce::dsp::FilterDesign<float>::designFIRLowpassWindowMethod(normalizedCutoff,sampleRate,order, windowType);
+    float gainFactor = std::pow(10.0f, gain / 20.0f); // Gain in linear scale
 
 
     juce::dsp::FIR::Coefficients<float> lowShelfCoefficients(order + 1);
 
-    for (size_t i = 0; i <= order; ++i)
+    for (size_t i = 0; i <= order / 2; ++i)
     {
-        if (i <= order / 2) 
+        float normalizedFrequency = static_cast<float>(i) / static_cast<float>(order / 2);
+        if (normalizedFrequency < normalizedCutoff)
         {
-            lowShelfCoefficients.coefficients.set(i, lowpassCoefficients->coefficients[i] * gain);
+            frequencyResponse[i] = gainFactor;
         }
         else
         {
-            lowShelfCoefficients.coefficients.set(i, lowpassCoefficients->coefficients[i]);
+            break;
         }
+    }
+
+    for (size_t i = order / 2 + 1; i <= order; ++i)
+    {
+        frequencyResponse[i] = frequencyResponse[order - i];
+    }
+
+    juce::dsp::FIR::Coefficients<float>::Ptr lowShelfCoefficients = juce::dsp::FilterDesign<float>::designFIRLowpassWindowMethod(normalizedCutoff, sampleRate, order, juce::dsp::WindowingFunction<float>::hann);
+
+    for (size_t i = 0; i <= order; ++i)
+    {
+        lowShelfCoefficients.coefficients.set(i, lowShelfCoefficients.coefficients[i] * frequencyResponse[i]);
     }
 
     return lowShelfCoefficients;
@@ -482,20 +488,36 @@ juce::dsp::FIR::Coefficients<float>::Ptr Filter::designLowShelfFIR(float cutoffF
 
 juce::dsp::FIR::Coefficients<float>::Ptr Filter::designHighShelfFIR(float cutoffFrequency, double sampleRate, size_t order, juce::dsp::WindowingFunction<float>::WindowingMethod windowType, float gain)
 {
-    auto highpassCoefficients = designHighpassfilter(cutoffFrequency,sampleRate, order, windowType);
+    std::vector<float> frequencyResponse(order + 1, 1.0f);
+    float normalizedCutoff = cutoffFrequency / (sampleRate / 2.0);
+    float gainFactor = std::pow(10.0f, gain / 20.0f); // Gain in linear scale
 
-    juce::dsp::FIR::Coefficients<float> highShelfCoefficients(order + 1);
+    juce::dsp::FIR::Coefficients<float>::Ptr highShelfCoefficients = designHighpassfilter(cutoffFrequency, sampleRate, order, windowType);
 
-    for (size_t i = 0; i <= order; ++i)
+    // 주파수 응답 설정
+    for (size_t i = 0; i <= order / 2; ++i)
     {
-        if (i >= order / 2) 
+        float normalizedFrequency = static_cast<float>(i) / static_cast<float>(order / 2);
+        if (normalizedFrequency > normalizedCutoff)
         {
-            highShelfCoefficients.coefficients.set(i, highpassCoefficients->coefficients[i] * gain);
+            frequencyResponse[i] = gainFactor;
         }
         else
         {
-            highShelfCoefficients.coefficients.set(i, highpassCoefficients->coefficients[i]);
+            break;
         }
+    }
+
+    for (size_t i = order / 2 + 1; i <= order; ++i)
+    {
+        frequencyResponse[i] = frequencyResponse[order - i];
+    }
+
+    // 고역 필터 계수에 주파수 응답을 적용
+    for (size_t i = 0; i <= order; ++i)
+    {
+        float newCoefficient = highShelfCoefficients->coefficients[i] * frequencyResponse[i];
+        highShelfCoefficients->coefficients.set(i, newCoefficient);
     }
 
     return highShelfCoefficients;
