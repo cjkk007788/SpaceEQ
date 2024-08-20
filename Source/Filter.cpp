@@ -3,6 +3,7 @@
 #include "juce_dsp/juce_dsp.h"
 
 
+
 void convertToMidSide(juce::AudioBuffer<float>& buffer)
 {
     auto* leftChannel = buffer.getWritePointer(0);
@@ -143,12 +144,18 @@ void Filter::process(juce::AudioBuffer<float>& buffer) {
 
     switch (currentProcessingMode) {
     case Optionbox::Basic:
-        // stereo mode
-        for (auto& filter : iirFilters) {
-            filter->process(juce::dsp::ProcessContextReplacing<float>(block));
+        // Stereo mode
+        if (currentEQMode == Optionbox::BasicEQ) {
+            for (auto& filter : iirFilters) {
+                filter->process(juce::dsp::ProcessContextReplacing<float>(block));
+            }
+        }
+        else if (currentEQMode == Optionbox::LinearPhase) {
+            for (auto& filter : firFilters) {
+                filter->process(juce::dsp::ProcessContextReplacing<float>(block));
+            }
         }
         break;
-
     case Optionbox::Mid:
         // Mid side mode
         convertToMidSide(buffer);
@@ -158,8 +165,15 @@ void Filter::process(juce::AudioBuffer<float>& buffer) {
             juce::dsp::AudioBlock<float> midBlock(leftChannel,1, static_cast<size_t>(buffer.getNumSamples()));
             juce::dsp::ProcessContextReplacing<float> midContext(midBlock);
 
-            for (auto& filter : iirFilters) {
-                filter->process(midContext);
+            if (currentEQMode == Optionbox::BasicEQ) {
+                for (auto& filter : iirFilters) {
+                    filter->process(midContext);
+                }
+            }
+            else if (currentEQMode == Optionbox::LinearPhase) {
+                for (auto& filter : firFilters) {
+                    filter->process(midContext);
+                }
             }
         }
 
@@ -175,8 +189,15 @@ void Filter::process(juce::AudioBuffer<float>& buffer) {
             juce::dsp::AudioBlock<float> sideBlock(rightChannel, 1, static_cast<size_t>(buffer.getNumSamples()));
             juce::dsp::ProcessContextReplacing<float> sideContext(sideBlock);
 
-            for (auto& filter : iirFilters) {
-                filter->process(sideContext);
+            if (currentEQMode == Optionbox::BasicEQ) {
+                for (auto& filter : iirFilters) {
+                    filter->process(sideContext);
+                }
+            }
+            else if (currentEQMode == Optionbox::LinearPhase) {
+                for (auto& filter : firFilters) {
+                    filter->process(sideContext);
+                }
             }
         }
 
@@ -189,8 +210,16 @@ void Filter::process(juce::AudioBuffer<float>& buffer) {
             float* leftChannel[] = { buffer.getWritePointer(0) }; // left channel array
             juce::dsp::AudioBlock<float> sideLeftBlock(leftChannel,1, buffer.getNumSamples());
             juce::dsp::ProcessContextReplacing<float> sideLeftContext(sideLeftBlock);
-            for (auto& filter : iirFilters) {
-                filter->process(sideLeftContext);
+
+            if (currentEQMode == Optionbox::BasicEQ) {
+                for (auto& filter : iirFilters) {
+                    filter->process(sideLeftContext);
+                }
+            }
+            else if (currentEQMode == Optionbox::LinearPhase) {
+                for (auto& filter : firFilters) {
+                    filter->process(sideLeftContext);
+                }
             }
         }
         break;
@@ -201,8 +230,15 @@ void Filter::process(juce::AudioBuffer<float>& buffer) {
             float* rightChannel[] = { buffer.getWritePointer(1) }; // right channel
             juce::dsp::AudioBlock<float> sideBlock(rightChannel, 1, static_cast<size_t>(buffer.getNumSamples()));
             juce::dsp::ProcessContextReplacing<float> sideRightContext(sideBlock);
-            for (auto& filter : iirFilters) {
-                filter->process(sideRightContext);
+            if (currentEQMode == Optionbox::BasicEQ) {
+                for (auto& filter : iirFilters) {
+                    filter->process(sideRightContext);
+                }
+            }
+            else if (currentEQMode == Optionbox::LinearPhase) {
+                for (auto& filter : firFilters) {
+                    filter->process(sideRightContext);
+                }
             }
         }
         break;
@@ -256,49 +292,52 @@ void Filter::updateIIRFilter(size_t index) {
 
 }
 
-void Filter::addIIRFilter(FilterType type, float cutoffFrequency, float q, float gain) {
-    auto newFilter = std::make_unique<juce::dsp::ProcessorDuplicator<juce::dsp::IIR::Filter<float>, juce::dsp::IIR::Coefficients<float>>>();
+void Filter::addIIRFilter(FilterType type, float cutoffFrequency, float q, float gain, Slope slope) {
 
-    // filter type
-    juce::dsp::IIR::Coefficients<float>::Ptr coefficients;
-
-    switch (type)
+    for (int i = 0; i < static_cast<int>(slope); ++i)
     {
-    case LowPass:
-        coefficients = juce::dsp::IIR::Coefficients<float>::makeLowPass(44100.0, cutoffFrequency, q);
-        break;
+        auto newFilter = std::make_unique<juce::dsp::ProcessorDuplicator<juce::dsp::IIR::Filter<float>, juce::dsp::IIR::Coefficients<float>>>();
 
-    case HighPass:
-        coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass(44100.0, cutoffFrequency, q);
-        break;
+        juce::dsp::IIR::Coefficients<float>::Ptr coefficients;
 
-    case BandPass:
-        coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(44100.0, cutoffFrequency, q);
-        break;
+        switch (type)
+        {
+        case LowPass:
+            coefficients = juce::dsp::IIR::Coefficients<float>::makeLowPass(44100.0, cutoffFrequency, q);
+            break;
 
-    case Notch:
-        coefficients = juce::dsp::IIR::Coefficients<float>::makeNotch(44100.0, cutoffFrequency, q);
-        break;
+        case HighPass:
+            coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass(44100.0, cutoffFrequency, q);
+            break;
 
-    case Peak:
-        coefficients = juce::dsp::IIR::Coefficients<float>::makePeakFilter(44100.0, cutoffFrequency, q, gain);
-        break;
+        case BandPass:
+            coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(44100.0, cutoffFrequency, q);
+            break;
 
-    case LowShelf:
-        coefficients = juce::dsp::IIR::Coefficients<float>::makeLowShelf(44100.0, cutoffFrequency, q, gain);
-        break;
+        case Notch:
+            coefficients = juce::dsp::IIR::Coefficients<float>::makeNotch(44100.0, cutoffFrequency, q);
+            break;
 
-    case HighShelf:
-        coefficients = juce::dsp::IIR::Coefficients<float>::makeHighShelf(44100.0, cutoffFrequency, q, gain);
-        break;
+        case Peak:
+            coefficients = juce::dsp::IIR::Coefficients<float>::makePeakFilter(44100.0, cutoffFrequency, q, gain);
+            break;
 
-    default:
-        jassertfalse;
-        break;
+        case LowShelf:
+            coefficients = juce::dsp::IIR::Coefficients<float>::makeLowShelf(44100.0, cutoffFrequency, q, gain);
+            break;
+
+        case HighShelf:
+            coefficients = juce::dsp::IIR::Coefficients<float>::makeHighShelf(44100.0, cutoffFrequency, q, gain);
+            break;
+
+        default:
+            jassertfalse;
+            return;
+        }
+
+        *newFilter->state = *coefficients;
+        iirFilters.push_back(std::move(newFilter)); // Add to vector
     }
-
-    *newFilter->state = *coefficients; // new coefficient
-    iirFilters.push_back(std::move(newFilter)); // add vector
 
 }
 
@@ -307,6 +346,11 @@ void Filter::removeIIRFilter(size_t index)
     if (index < iirFilters.size())
     {
         iirFilters.erase(iirFilters.begin() + index);
+    }
+}
+void Filter::removeFIRFilter(size_t index) {
+    if (index < firFilters.size()) {
+        firFilters.erase(firFilters.begin() + index);
     }
 }
 
@@ -324,4 +368,242 @@ float Filter::getGain(size_t index) const
         return gains[index];
     }
     return 1.0f;
+}
+
+juce::dsp::FIR::Coefficients<float>::Ptr Filter::convertLowpassToHighpass(const juce::dsp::FIR::Coefficients<float>::Ptr& lowpassCoefficients)
+{
+    size_t order = lowpassCoefficients->coefficients.size();
+
+    juce::dsp::FIR::Coefficients<float> highpass(order);
+
+    for (size_t i = 0; i < order; ++i)
+    {
+        if (i == order / 2)
+            highpass.coefficients.set(i, 1.0f - lowpassCoefficients->coefficients[i]);
+        else
+            highpass.coefficients.set(i, -lowpassCoefficients->coefficients[i]);
+    }
+
+    return highpass;
+}
+
+juce::dsp::FIR::Coefficients<float>::Ptr Filter::designLowpassFIR(float cutoffFrequency, double sampleRate, size_t order, juce::dsp::WindowingFunction<float>::WindowingMethod windowType)
+{
+    float normalizedCutoff = cutoffFrequency / (sampleRate / 2.0);
+    return juce::dsp::FilterDesign<float>::designFIRLowpassWindowMethod(normalizedCutoff, sampleRate, order, windowType);
+}
+
+juce::dsp::FIR::Coefficients<float>::Ptr Filter::designHighpassfilter(float cutoffFrequency, double sampleRate, size_t order, juce::dsp::WindowingFunction<float>::WindowingMethod windowType)
+{
+    auto lowpassCoefficients = designLowpassFIR(cutoffFrequency,sampleRate, order, windowType);
+    return convertLowpassToHighpass(lowpassCoefficients);
+}
+
+juce::dsp::FIR::Coefficients<float>::Ptr Filter::designBandpassFilter(float centerFrequency, float bandwidth, double sampleRate, size_t order, juce::dsp::WindowingFunction<float>::WindowingMethod windowType)
+{
+    float lowCutoff = centerFrequency - (bandwidth / 2.0f);
+    float highCutoff = centerFrequency + (bandwidth / 2.0f);
+
+    auto lowpass = juce::dsp::FilterDesign<float>::designFIRLowpassWindowMethod(highCutoff / (sampleRate / 2.0),sampleRate, order, windowType);
+    auto highpass = designHighpassfilter(lowCutoff / (sampleRate / 2.0),sampleRate, order, windowType);
+    juce::dsp::FIR::Coefficients<float> bandpassCoefficients(order + 1);
+
+
+    for (size_t i = 0; i <= order; ++i)
+    {
+        bandpassCoefficients.coefficients.set(i, lowpass->coefficients[i] + highpass->coefficients[i]);
+
+    }
+
+    return bandpassCoefficients;
+}
+
+juce::dsp::FIR::Coefficients<float>::Ptr Filter::designBandstopFIR(float centerFrequency, float bandwidth, double sampleRate, size_t order, juce::dsp::WindowingFunction<float>::WindowingMethod windowType) {
+
+    auto bandpassCoefficients = designBandpassFilter(centerFrequency,bandwidth,sampleRate, order, windowType);
+    juce::dsp::FIR::Coefficients<float> bandstopCoefficients(order + 1);
+    for (size_t i = 0; i <= order; ++i)
+    {
+        if (i == order / 2)
+            bandstopCoefficients.coefficients.set(i, 1.0f - bandpassCoefficients->coefficients[i]);
+        else
+            bandstopCoefficients.coefficients.set(i, -bandpassCoefficients->coefficients[i]);
+    }
+
+    return bandstopCoefficients;
+}
+
+juce::dsp::FIR::Coefficients<float>::Ptr Filter::designPeakFIR(float centerFrequency,float Q, double sampleRate, size_t order, juce::dsp::WindowingFunction<float>::WindowingMethod windowType, float gain)
+{
+    float bandwidth = centerFrequency / Q;
+    auto bandpassCoefficients = designBandpassFilter(centerFrequency,Q,sampleRate,order,windowType);
+    juce::dsp::FIR::Coefficients<float> peakCoefficients(order + 1);
+    for (size_t i = 0; i <= order; ++i)
+    {
+        if (i == order / 2)
+            peakCoefficients.coefficients.set(i, 1.0f + (bandpassCoefficients->coefficients[i] * (gain - 1.0f)));
+        else
+            peakCoefficients.coefficients.set(i, bandpassCoefficients->coefficients[i]);
+    }
+
+    return peakCoefficients;
+}
+
+juce::dsp::FIR::Coefficients<float>::Ptr Filter::designLowShelfFIR(float cutoffFrequency, double sampleRate, size_t order, juce::dsp::WindowingFunction<float>::WindowingMethod windowType,float gain )
+{
+    std::vector<float> frequencyResponse(order + 1, 1.0f);
+    float normalizedCutoff = cutoffFrequency / (sampleRate / 2.0);
+    float gainFactor = std::pow(10.0f, gain / 20.0f); // Gain in linear scale
+
+
+    juce::dsp::FIR::Coefficients<float> lowShelfCoefficients(order + 1);
+
+    for (size_t i = 0; i <= order / 2; ++i)
+    {
+        float normalizedFrequency = static_cast<float>(i) / static_cast<float>(order / 2);
+        if (normalizedFrequency < normalizedCutoff)
+        {
+            frequencyResponse[i] = gainFactor;
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    for (size_t i = order / 2 + 1; i <= order; ++i)
+    {
+        frequencyResponse[i] = frequencyResponse[order - i];
+    }
+
+    juce::dsp::FIR::Coefficients<float>::Ptr lowShelfCoefficients = juce::dsp::FilterDesign<float>::designFIRLowpassWindowMethod(normalizedCutoff, sampleRate, order, juce::dsp::WindowingFunction<float>::hann);
+
+    for (size_t i = 0; i <= order; ++i)
+    {
+        lowShelfCoefficients.coefficients.set(i, lowShelfCoefficients.coefficients[i] * frequencyResponse[i]);
+    }
+
+    return lowShelfCoefficients;
+}
+
+juce::dsp::FIR::Coefficients<float>::Ptr Filter::designHighShelfFIR(float cutoffFrequency, double sampleRate, size_t order, juce::dsp::WindowingFunction<float>::WindowingMethod windowType, float gain)
+{
+    std::vector<float> frequencyResponse(order + 1, 1.0f);
+    float normalizedCutoff = cutoffFrequency / (sampleRate / 2.0);
+    float gainFactor = std::pow(10.0f, gain / 20.0f); // Gain in linear scale
+
+    juce::dsp::FIR::Coefficients<float>::Ptr highShelfCoefficients = designHighpassfilter(cutoffFrequency, sampleRate, order, windowType);
+
+    // 주파수 응답 설정
+    for (size_t i = 0; i <= order / 2; ++i)
+    {
+        float normalizedFrequency = static_cast<float>(i) / static_cast<float>(order / 2);
+        if (normalizedFrequency > normalizedCutoff)
+        {
+            frequencyResponse[i] = gainFactor;
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    for (size_t i = order / 2 + 1; i <= order; ++i)
+    {
+        frequencyResponse[i] = frequencyResponse[order - i];
+    }
+
+    // 고역 필터 계수에 주파수 응답을 적용
+    for (size_t i = 0; i <= order; ++i)
+    {
+        float newCoefficient = highShelfCoefficients->coefficients[i] * frequencyResponse[i];
+        highShelfCoefficients->coefficients.set(i, newCoefficient);
+    }
+
+    return highShelfCoefficients;
+}
+
+
+void Filter::addFIRFilter(FilterType type, float cutoffFrequency, float q, size_t order, juce::dsp::WindowingFunction<float>::WindowingMethod windowType, float beta, float gain, Slope slope)
+{
+    juce::dsp::FIR::Coefficients<float>::Ptr coefficients;
+    double sampleRate = 44100.0;
+    size_t baseOrder = 64; 
+    order = baseOrder * static_cast<size_t>(slope); 
+
+    switch (type)
+    {
+    case LowPass:
+        coefficients = juce::dsp::FilterDesign<float>::designFIRLowpassWindowMethod(cutoffFrequency, sampleRate, order, windowType);
+        break;
+    case HighPass:
+        coefficients = designHighpassfilter(cutoffFrequency,sampleRate, order, windowType);
+        break;
+    case BandPass:
+        coefficients = designBandpassFilter(cutoffFrequency,q,sampleRate,order,windowType);
+        break;
+    case Notch:
+        coefficients = designBandstopFIR(cutoffFrequency, q, sampleRate, order, windowType);
+        break;
+    case Peak:
+        coefficients = designPeakFIR(cutoffFrequency, q, sampleRate, order, windowType,gain);
+        break;
+    case HighShelf:
+         break;
+        coefficients = designHighShelfFIR(cutoffFrequency, sampleRate, order, windowType, gain);
+    case LowShelf:
+         break;
+        coefficients = designLowShelfFIR(cutoffFrequency, sampleRate, order, windowType, gain);
+    default:
+        jassertfalse;
+        return;
+    }
+    auto newFIRFilter = std::make_unique<juce::dsp::FIR::Filter<float>>(coefficients);
+    firFilters.push_back(std::move(newFIRFilter));
+}
+void Filter::updateFIRFilter(size_t index) {
+    if (index < firFilters.size()) {
+
+        juce::dsp::FIR::Coefficients<float>::Ptr coefficients;
+        double sampleRate = 44100.0;
+        size_t baseOrder = 64;
+        size_t order = baseOrder * static_cast<size_t>(slopes[index]);
+
+
+        switch (filterTypes[index])
+        {
+        case LowPass:
+            coefficients = juce::dsp::FilterDesign<float>::designFIRLowpassWindowMethod(cutoffFrequencies[index], sampleRate, order, juce::dsp::WindowingFunction<float>::WindowingMethod::hann);
+            break;
+
+        case HighPass:
+            coefficients = designHighpassfilter(cutoffFrequencies[index], sampleRate, order, juce::dsp::WindowingFunction<float>::WindowingMethod::hann);
+            break;
+
+        case BandPass:
+            coefficients = designBandpassFilter(cutoffFrequencies[index], qValues[index], sampleRate, order, juce::dsp::WindowingFunction<float>::WindowingMethod::hann);
+            break;
+
+        case Notch:
+            coefficients = designBandstopFIR(cutoffFrequencies[index], qValues[index], sampleRate, order, juce::dsp::WindowingFunction<float>::WindowingMethod::hann);
+            break;
+
+        case Peak:
+            coefficients = designPeakFIR(cutoffFrequencies[index], qValues[index], sampleRate, order, juce::dsp::WindowingFunction<float>::WindowingMethod::hann, gains[index]);
+            break;
+
+        case LowShelf:
+            coefficients = designLowShelfFIR(cutoffFrequencies[index], sampleRate, order, juce::dsp::WindowingFunction<float>::WindowingMethod::hann, gains[index]);
+            break;
+
+        case HighShelf:
+            coefficients = designHighShelfFIR(cutoffFrequencies[index], sampleRate, order, juce::dsp::WindowingFunction<float>::WindowingMethod::hann, gains[index]);
+            break;
+
+        default:
+            jassertfalse;
+            return;
+        }
+        firFilters[index]->coefficients = coefficients;
+    }
 }
