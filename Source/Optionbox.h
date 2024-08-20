@@ -22,7 +22,6 @@ public:
 
     Optionbox();
 
-
     void setEQMode(EQMode newMode);
 
     EQMode getEQMode() const;
@@ -42,10 +41,10 @@ public:
 
 
 private:
-    EQMode currentEQMode;
-    ProcessingMode currentProcessingMode;
-    bool busModeEnabled;
-    SpectrumAccuracy currentSpectrumAccuracy;
-    float currentPivotSlope;
+    EQMode currentEQMode; //currentEqMode Parameter --> using for select linear phase mode or BasicEQmode
+    ProcessingMode currentProcessingMode; // using for selecting side/mid/sideleft,sideright..... 
+    bool busModeEnabled;//Using for bus mode
+    SpectrumAccuracy currentSpectrumAccuracy;// using for selecting spectrum accuracy
+    float currentPivotSlope; // using for pivot slope mode
 
 };
