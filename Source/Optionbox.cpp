@@ -26,12 +26,22 @@ void Optionbox::setBusMode(bool enabled) {
     busModeEnabled = enabled;
 }
 
+Optionbox::ProcessingMode Optionbox::getProcessingMode() const
+{
+    return currentProcessingMode;
+}
+
 bool Optionbox::getBusMode() const {
     return busModeEnabled;
 }
 
 void Optionbox::setSpectrumAccuracy(SpectrumAccuracy level) {
     currentSpectrumAccuracy = level;
+}
+
+Optionbox::SpectrumAccuracy Optionbox::getSpectrumAccuracy() const
+{
+    return currentSpectrumAccuracy;
 }
 
 void Optionbox::setPivotSlope(float slope) {
@@ -41,3 +51,4 @@ void Optionbox::setPivotSlope(float slope) {
 float Optionbox::getPivotSlope() const {
     return currentPivotSlope;
 }
+
