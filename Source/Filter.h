@@ -62,12 +62,18 @@ public:
     void setGain(float gainValue, size_t index);
     float getGain(size_t index) const;
 
-    juce::dsp::FIR::Coefficients<float>::Ptr Filter::designHighpassfilter(float cutoffFrequenc,double sampleRate, size_t order, juce::dsp::WindowingFunction<float>::WindowingMethod windowType);
+    juce::dsp::FIR::Coefficients<float>::Ptr designHighpassfilter(float cutoffFrequency, double sampleRate, size_t order, juce::dsp::WindowingFunction<float>::WindowingMethod windowType);
+
     juce::dsp::FIR::Coefficients<float>::Ptr designBandpassFilter(float centerFrequency, float bandwidth, double sampleRate, size_t order, juce::dsp::WindowingFunction<float>::WindowingMethod windowType);
-    juce::dsp::FIR::Coefficients<float>::Ptr designBandstopFIR(float centerFrequency, float bandwidth, double sampleRate, size_t order, juce::dsp::WindowingFunction<float>::WindowingMethod windowType);
-    juce::dsp::FIR::Coefficients<float>::Ptr Filter::designPeakFIR(float centerFrequency, float Q, double sampleRate, size_t order, juce::dsp::WindowingFunction<float>::WindowingMethod windowType, float gain);
-    juce::dsp::FIR::Coefficients<float>::Ptr Filter::designLowShelfFIR(float cutoffFrequency, double sampleRate, size_t order, juce::dsp::WindowingFunction<float>::WindowingMethod windowType, float gain);
-    juce::dsp::FIR::Coefficients<float>::Ptr Filter::designHighShelfFIR(float cutoffFrequency, double sampleRate, size_t order, juce::dsp::WindowingFunction<float>::WindowingMethod windowType, float gain );
+
+    juce::dsp::FIR::Coefficients<float>::Ptr designBandsToFIR(float centerFrequency, float bandwidth, double sampleRate, size_t order, juce::dsp::WindowingFunction<float>::WindowingMethod windowType);
+    
+    juce::dsp::FIR::Coefficients<float>::Ptr designPeakFIR(float centerFrequency, float Q, double sampleRate, size_t order, juce::dsp::WindowingFunction<float>::WindowingMethod windowType, float gain);
+
+    juce::dsp::FIR::Coefficients<float>::Ptr designLowShelfFIR(float cutoffFrequency, double sampleRate, size_t order, juce::dsp::WindowingFunction<float>::WindowingMethod windowType, float gain);
+
+    juce::dsp::FIR::Coefficients<float>::Ptr designHighShelfFIR(float cutoffFrequency, double sampleRate, size_t order, juce::dsp::WindowingFunction<float>::WindowingMethod windowType, float gain);
+
     juce::dsp::FIR::Coefficients<float>::Ptr convertLowpassToHighpass(const juce::dsp::FIR::Coefficients<float>::Ptr& lowpassCoefficients);
     juce::dsp::FIR::Coefficients<float>::Ptr designLowpassFIR(float cutoffFrequency, double sampleRate, size_t order, juce::dsp::WindowingFunction<float>::WindowingMethod windowType);
     // getting coeefficients of filter --> coeefitent makes filter type

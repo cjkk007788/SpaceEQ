@@ -418,7 +418,7 @@ juce::dsp::FIR::Coefficients<float>::Ptr Filter::designBandpassFilter(float cent
     return bandpassCoefficients;
 }
 
-juce::dsp::FIR::Coefficients<float>::Ptr Filter::designBandstopFIR(float centerFrequency, float bandwidth, double sampleRate, size_t order, juce::dsp::WindowingFunction<float>::WindowingMethod windowType) {
+juce::dsp::FIR::Coefficients<float>::Ptr Filter::designBandsToFIR(float centerFrequency, float bandwidth, double sampleRate, size_t order, juce::dsp::WindowingFunction<float>::WindowingMethod windowType) {
 
     auto bandpassCoefficients = designBandpassFilter(centerFrequency,bandwidth,sampleRate, order, windowType);
     juce::dsp::FIR::Coefficients<float> bandstopCoefficients(order + 1);
@@ -455,8 +455,8 @@ juce::dsp::FIR::Coefficients<float>::Ptr Filter::designLowShelfFIR(float cutoffF
     float normalizedCutoff = cutoffFrequency / (sampleRate / 2.0);
     float gainFactor = std::pow(10.0f, gain / 20.0f); // Gain in linear scale
 
-
-    juce::dsp::FIR::Coefficients<float> lowShelfCoefficients(order + 1);
+    // 이미 선언된 lowShelfCoefficients 포인터 변수 사용
+    auto lowShelfCoefficients = juce::dsp::FilterDesign<float>::designFIRLowpassWindowMethod(normalizedCutoff, sampleRate, order, windowType);
 
     for (size_t i = 0; i <= order / 2; ++i)
     {
@@ -476,12 +476,11 @@ juce::dsp::FIR::Coefficients<float>::Ptr Filter::designLowShelfFIR(float cutoffF
         frequencyResponse[i] = frequencyResponse[order - i];
     }
 
-    juce::dsp::FIR::Coefficients<float>::Ptr lowShelfCoefficients = juce::dsp::FilterDesign<float>::designFIRLowpassWindowMethod(normalizedCutoff, sampleRate, order, juce::dsp::WindowingFunction<float>::hann);
-
     for (size_t i = 0; i <= order; ++i)
     {
-        lowShelfCoefficients.coefficients.set(i, lowShelfCoefficients.coefficients[i] * frequencyResponse[i]);
+        lowShelfCoefficients->coefficients.set(i, lowShelfCoefficients->coefficients[i] * frequencyResponse[i]);
     }
+
 
     return lowShelfCoefficients;
 }
@@ -528,8 +527,8 @@ void Filter::addFIRFilter(FilterType type, float cutoffFrequency, float q, size_
 {
     juce::dsp::FIR::Coefficients<float>::Ptr coefficients;
     double sampleRate = 44100.0;
-    size_t baseOrder = 64; 
-    order = baseOrder * static_cast<size_t>(slope); 
+    size_t baseOrder = 64;
+    order = baseOrder * static_cast<size_t>(slope);
 
     switch (type)
     {
@@ -543,21 +542,22 @@ void Filter::addFIRFilter(FilterType type, float cutoffFrequency, float q, size_
         coefficients = designBandpassFilter(cutoffFrequency,q,sampleRate,order,windowType);
         break;
     case Notch:
-        coefficients = designBandstopFIR(cutoffFrequency, q, sampleRate, order, windowType);
+        coefficients = designBandsToFIR(cutoffFrequency, q, sampleRate, order, windowType);
         break;
     case Peak:
         coefficients = designPeakFIR(cutoffFrequency, q, sampleRate, order, windowType,gain);
         break;
     case HighShelf:
-         break;
         coefficients = designHighShelfFIR(cutoffFrequency, sampleRate, order, windowType, gain);
+        break; // break 문이 올바르게 위치해야 함
     case LowShelf:
-         break;
         coefficients = designLowShelfFIR(cutoffFrequency, sampleRate, order, windowType, gain);
+        break; // break 문이 올바르게 위치해야 함
     default:
         jassertfalse;
         return;
     }
+
     auto newFIRFilter = std::make_unique<juce::dsp::FIR::Filter<float>>(coefficients);
     firFilters.push_back(std::move(newFIRFilter));
 }
@@ -585,7 +585,7 @@ void Filter::updateFIRFilter(size_t index) {
             break;
 
         case Notch:
-            coefficients = designBandstopFIR(cutoffFrequencies[index], qValues[index], sampleRate, order, juce::dsp::WindowingFunction<float>::WindowingMethod::hann);
+                coefficients = designBandsToFIR(cutoffFrequencies[index], qValues[index], sampleRate, order, juce::dsp::WindowingFunction<float>::WindowingMethod::hann);
             break;
 
         case Peak:
