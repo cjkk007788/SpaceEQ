@@ -476,11 +476,11 @@ juce::dsp::FIR::Coefficients<float>::Ptr Filter::designLowShelfFIR(float cutoffF
         frequencyResponse[i] = frequencyResponse[order - i];
     }
 
-    juce::dsp::FIR::Coefficients<float>::Ptr lowShelfCoefficients = juce::dsp::FilterDesign<float>::designFIRLowpassWindowMethod(normalizedCutoff, sampleRate, order, juce::dsp::WindowingFunction<float>::hann);
+    auto temp = juce::dsp::FilterDesign<float>::designFIRLowpassWindowMethod(normalizedCutoff, sampleRate, order, juce::dsp::WindowingFunction<float>::hann);
 
     for (size_t i = 0; i <= order; ++i)
     {
-        lowShelfCoefficients.coefficients.set(i, lowShelfCoefficients.coefficients[i] * frequencyResponse[i]);
+        lowShelfCoefficients.coefficients.set(i, temp->coefficients[i] * frequencyResponse[i]);
     }
 
     return lowShelfCoefficients;
